@@ -2,9 +2,9 @@ name: Kubernetes Infra CI/CD
 
 on:
   pull_request:
-    branches: ["main", "homologacao"]
+    branches: ["main", "homologacao", "production"]
   push:
-    branches: ["main", "homologacao"]
+    branches: ["main", "homologacao", "production"]
   workflow_dispatch:
 
 jobs:
@@ -65,7 +65,7 @@ jobs:
   deploy-production:
     name: Deploy Produção
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
     runs-on: ubuntu-latest
     environment: production
     steps:
