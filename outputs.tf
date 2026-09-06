@@ -18,11 +18,6 @@ output "database_service" {
   value       = "db.${var.namespace}.svc.cluster.local:5432"
 }
 
-output "database_secret_name" {
-  description = "Nome do Secret com as credenciais do banco (usado pelo pod do Postgres)"
-  value       = kubernetes_secret.db_credentials.metadata[0].name
-}
-
 output "monitoring_namespace" {
   description = "Namespace para stack de observabilidade e monitoração"
   value       = "monitoring"
