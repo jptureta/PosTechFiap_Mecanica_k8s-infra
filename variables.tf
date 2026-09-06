@@ -1,55 +1,47 @@
+variable "aws_region" {
+  description = "Região da AWS para criação do cluster EKS e VPC"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "cluster_name" {
-  description = "Nome do cluster kind"
+  description = "Nome do cluster EKS"
   type        = string
-  default     = "oficina-mecanica"
+  default     = "oficina-mecanica-eks"
 }
 
-variable "namespace" {
-  description = "Namespace Kubernetes onde a aplicação e o banco serão implantados"
+variable "cluster_version" {
+  description = "Versão do Kubernetes para o cluster EKS"
   type        = string
-  default     = "oficina"
+  default     = "1.30"
 }
 
-variable "db_name" {
-  description = "Nome do banco de dados da aplicação"
+variable "vpc_cidr" {
+  description = "Bloco CIDR da VPC do cluster"
   type        = string
-  default     = "oficina_db"
+  default     = "10.0.0.0/16"
 }
 
-variable "db_user" {
-  description = "Usuário do banco de dados"
-  type        = string
-  default     = "oficina"
+variable "node_instance_types" {
+  description = "Tipos de instâncias EC2 para os worker nodes"
+  type        = list(string)
+  default     = ["t3.medium"]
 }
 
-variable "db_password" {
-  description = "Senha do banco de dados (definir via terraform.tfvars ou TF_VAR_db_password — nunca commitar)"
-  type        = string
-  sensitive   = true
+variable "min_nodes" {
+  description = "Capacidade mínima de nós no Node Group (Auto Scaling)"
+  type        = number
+  default     = 2
 }
 
-variable "db_storage_size" {
-  description = "Tamanho do volume persistente do PostgreSQL"
-  type        = string
-  default     = "1Gi"
+variable "max_nodes" {
+  description = "Capacidade máxima de nós no Node Group (Auto Scaling)"
+  type        = number
+  default     = 5
 }
 
-variable "datadog_api_key" {
-  description = "API key do Datadog para integração de monitoramento do cluster"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "datadog_app_key" {
-  description = "Application key do Datadog para dashboards e alertas"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "datadog_site" {
-  description = "Site do Datadog"
-  type        = string
-  default     = "datadoghq.com"
+variable "desired_nodes" {
+  description = "Capacidade desejada de nós no Node Group"
+  type        = number
+  default     = 2
 }

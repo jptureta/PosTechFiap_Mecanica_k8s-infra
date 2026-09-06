@@ -1,106 +1,71 @@
-# Oficina Mecânica | Infraestrutura Kubernetes
+# Oficina Mecânica | Infraestrutura Kubernetes (AWS EKS)
 
-Infraestrutura Terraform responsável pelo cluster e pelos recursos base usados pela aplicação Oficina Mecânica.
+Infraestrutura Terraform responsável pelo cluster gerenciado **AWS EKS** e pelo **Managed Node Group escalável** para a aplicação Oficina Mecânica.
 
-## Visão geral
+## Visão Geral
 
 | Item | Informação |
 | --- | --- |
-| Responsabilidade | Cluster, namespace, rede e recursos base |
+| Responsabilidade | Cluster EKS, VPC dedicada, Subnets multi-AZ, IAM Roles e Node Auto Scaling |
 | IaC | Terraform |
-| Plataforma | AWS ou kind, conforme configuração |
+| Plataforma | AWS EKS (Kubernetes 1.30) |
 | Ambientes | `homologacao` e `production` |
 | Pipeline | [GitHub Actions](.github/workflows/ci-cd.yml) |
-| Estado operacional | Operacional quando o cluster está acessível e os nodes estão `Ready` |
+| Estado operacional | Operacional quando o Control Plane estiver `ACTIVE` e os Nodes `Ready` |
 
-## Arquitetura geral
+## Arquitetura Geral
 
 ```mermaid
 flowchart LR
-    Pipeline[GitHub Actions / Terraform] --> Cluster[Cluster Kubernetes]
-    Cluster --> NS[Namespace oficina]
-    NS --> API[API FastAPI]
-    NS --> Worker[Worker]
-    NS --> Redis[(Redis)]
-    NS --> DB[(PostgreSQL)]
-    Cluster --> DD[Datadog Agent]
-    DD --> Signals[Métricas, logs e alertas]
+    Pipeline[GitHub Actions / Terraform] --> EKS[AWS EKS Control Plane]
+    VPC[VPC Multi-AZ] --> EKS
+    EKS --> NodeGroup[Managed Node Group\nAuto Scaling: 2 a 5 nós]
+    NodeGroup --> Pods[FastAPI / Workers / HPA]
+    Pods --> RDS[(AWS RDS PostgreSQL)]
+    Pods --> Datadog[Datadog Monitoring]
 ```
 
-## Stack e componentes
+## Stack e Componentes
 
-- Terraform 1.8.5
-- Kubernetes
-- AWS ou kind
-- GitHub Actions
-- Datadog Agent/Cluster Agent
+- Terraform >= 1.5.0
+- Provider `hashicorp/aws ~> 5.0`
+- VPC dedicada com DNS support/hostnames e Internet Gateway (`aws_vpc`, `aws_subnet`)
+- AWS EKS Control Plane v1.30 (`aws_eks_cluster`)
+- EKS Managed Node Group (`aws_eks_node_group`) com instâncias `t3.medium`
+- **Cluster Auto Scaling**: Mínimo de 2 nós, Máximo de 5 nós, Desejado de 2 nós
+- IAM Roles completas para cluster e nós (`AmazonEKSClusterPolicy`, `AmazonEKSWorkerNodePolicy`, etc.)
 
-## Status operacional e endpoints
+## Deploy e Acesso
 
-| Verificação | Acesso |
-| --- | --- |
-| Nodes | `kubectl get nodes` |
-| Pods da aplicação | `kubectl get pods -n oficina` |
-| Services | `kubectl get svc -n oficina` |
-| Swagger da API | http://localhost:8000/docs após port-forward |
-| Health da API | http://localhost:8000/health após port-forward |
-| Endpoint público | Depende do NodePort, LoadBalancer ou Ingress do ambiente |
+### Deploy Automatizado
 
-Este repositório provisiona a plataforma; a API e seu Swagger são mantidos no repositório [PosTechFiap_Mecanica_app-k8s](../PosTechFiap_Mecanica_app-k8s/README.md).
+O pipeline de CI/CD executa `terraform fmt`, `terraform validate` e `terraform plan` em Pull Requests, e `terraform apply` automático nas branches de `homologacao` e `production`.
 
-## Deploy e acesso
-
-### Deploy automatizado
-
-O [pipeline de CI/CD](.github/workflows/ci-cd.yml) executa `fmt`, `validate`, `plan` e `apply` por ambiente. O endpoint final depende dos outputs e da exposição configurada no cluster.
-
-### Deploy manual
+### Deploy Manual
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan
 terraform apply
-terraform output
 ```
 
-### Acesso ao cluster e à API
+### Configurar Acesso com kubectl
+
+Após o provisionamento, configure o contexto local do Kubernetes com o comando fornecido no output do Terraform:
 
 ```bash
+aws eks update-kubeconfig --region us-east-1 --name oficina-mecanica-eks
 kubectl get nodes
-kubectl get pods -A
-kubectl get svc -n oficina
-kubectl port-forward svc/api 8000:8000 -n oficina
 ```
 
-Depois do port-forward:
+## Escalabilidade
 
-- Swagger: http://localhost:8000/docs
-- Health: http://localhost:8000/health
+O cluster conta com duas camadas de escalabilidade:
+1. **Nível de Pods (HPA):** O Horizontal Pod Autoscaler (`api-hpa.yaml`) no repositório `app-k8s` escala as réplicas da aplicação de 2 a 10 pods com base em CPU e Memória.
+2. **Nível de Infraestrutura/Nós (Auto Scaling Group):** O EKS Managed Node Group expande automaticamente os nós EC2 de 2 até 5 instâncias conforme a demanda do cluster.
 
-Se o Service estiver publicado como NodePort, use `http://<IP-do-node>:30000/docs`; se estiver atrás de LoadBalancer/Ingress, use o hostname fornecido pelo ambiente.
+## Documentação Arquitetural Completa
 
-## CI/CD e configuração
-
-Secrets esperados: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_REGION`. Valores sensíveis permanecem fora do Git e devem ser fornecidos por variáveis protegidas.
-
-## Observabilidade
-
-O cluster deve coletar CPU, memória, latência, probes, reinícios, logs JSON e falhas de processamento. O Datadog Agent deve ser instalado no namespace de monitoramento com `DATADOG_API_KEY` e `DATADOG_APP_KEY` protegidos.
-
-## Estrutura do repositório
-
-```text
-cluster.tf             Cluster e recursos base
-providers.tf           Providers Terraform
-variables.tf           Variáveis de ambiente
-outputs.tf             Endpoints e saídas
-.github/workflows/     Pipeline de validação e deploy
-```
-
-## Segurança e governança
-
-- kubeconfig e credenciais fora do Git;
-- produção sujeita a aprovação e checks;
-- namespace e permissões devem seguir menor privilégio;
-- merge somente via Pull Request em branch protegida.
+Para detalhes sobre a topologia de rede, diagrama de sequência, decisões técnicas (RFCs/ADRs) e modelo de dados, consulte o documento consolidado:
+👉 [`docs/arquitetura.md` no repositório app-k8s](../PosTechFiap_Mecanica_app-k8s/docs/arquitetura.md).

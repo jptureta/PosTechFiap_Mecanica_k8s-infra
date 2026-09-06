@@ -1,9 +1,11 @@
 # Copie este arquivo para terraform.tfvars e preencha os valores.
 # O terraform.tfvars real NÃO deve ser commitado (está no .gitignore).
 
-cluster_name    = "oficina-mecanica"
-namespace       = "oficina"
-db_name         = "oficina_db"
-db_user         = "oficina"
-db_password     = "defina-uma-senha-forte-aqui"
-db_storage_size = "1Gi"
+aws_region          = "us-east-1"
+cluster_name        = "oficina-mecanica-eks"
+cluster_version     = "1.30"
+vpc_cidr            = "10.0.0.0/16"
+node_instance_types = ["t3.medium"]
+min_nodes           = 2
+max_nodes           = 5
+desired_nodes       = 2
