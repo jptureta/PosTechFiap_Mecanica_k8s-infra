@@ -33,3 +33,23 @@ variable "db_storage_size" {
   type        = string
   default     = "1Gi"
 }
+
+variable "datadog_api_key" {
+  description = "API key do Datadog para integração de monitoramento do cluster"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "datadog_app_key" {
+  description = "Application key do Datadog para dashboards e alertas"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "datadog_site" {
+  description = "Site do Datadog"
+  type        = string
+  default     = "datadoghq.com"
+}

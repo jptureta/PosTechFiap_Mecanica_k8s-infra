@@ -1,94 +1,106 @@
-# Repositório de Infraestrutura Kubernetes
+# Oficina Mecânica | Infraestrutura Kubernetes
 
-Este repositório é responsável pela infraestrutura base do ambiente Kubernetes da aplicação Oficina Mecânica.
+Infraestrutura Terraform responsável pelo cluster e pelos recursos base usados pela aplicação Oficina Mecânica.
 
-## Objetivo
+## Visão geral
 
-- provisionar o cluster Kubernetes
-- criar namespace e recursos base do ambiente
-- preparar o runtime para a aplicação principal
-- permitir deploy automatizado por branch e ambiente
+| Item | Informação |
+| --- | --- |
+| Responsabilidade | Cluster, namespace, rede e recursos base |
+| IaC | Terraform |
+| Plataforma | AWS ou kind, conforme configuração |
+| Ambientes | `homologacao` e `production` |
+| Pipeline | [GitHub Actions](.github/workflows/ci-cd.yml) |
+| Estado operacional | Operacional quando o cluster está acessível e os nodes estão `Ready` |
 
-## Stack principal
+## Arquitetura geral
 
-- Terraform
-- AWS
+```mermaid
+flowchart LR
+    Pipeline[GitHub Actions / Terraform] --> Cluster[Cluster Kubernetes]
+    Cluster --> NS[Namespace oficina]
+    NS --> API[API FastAPI]
+    NS --> Worker[Worker]
+    NS --> Redis[(Redis)]
+    NS --> DB[(PostgreSQL)]
+    Cluster --> DD[Datadog Agent]
+    DD --> Signals[Métricas, logs e alertas]
+```
+
+## Stack e componentes
+
+- Terraform 1.8.5
 - Kubernetes
-- kind
+- AWS ou kind
 - GitHub Actions
+- Datadog Agent/Cluster Agent
 
-## Recursos provisionados
+## Status operacional e endpoints
 
-- cluster Kubernetes local ou cloud
-- namespace da aplicação
-- secrets e configurações base
-- redes e serviços de apoio
-- integração com a aplicação principal
+| Verificação | Acesso |
+| --- | --- |
+| Nodes | `kubectl get nodes` |
+| Pods da aplicação | `kubectl get pods -n oficina` |
+| Services | `kubectl get svc -n oficina` |
+| Swagger da API | http://localhost:8000/docs após port-forward |
+| Health da API | http://localhost:8000/health após port-forward |
+| Endpoint público | Depende do NodePort, LoadBalancer ou Ingress do ambiente |
+
+Este repositório provisiona a plataforma; a API e seu Swagger são mantidos no repositório [PosTechFiap_Mecanica_app-k8s](../PosTechFiap_Mecanica_app-k8s/README.md).
+
+## Deploy e acesso
+
+### Deploy automatizado
+
+O [pipeline de CI/CD](.github/workflows/ci-cd.yml) executa `fmt`, `validate`, `plan` e `apply` por ambiente. O endpoint final depende dos outputs e da exposição configurada no cluster.
+
+### Deploy manual
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+terraform output
+```
+
+### Acesso ao cluster e à API
+
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get svc -n oficina
+kubectl port-forward svc/api 8000:8000 -n oficina
+```
+
+Depois do port-forward:
+
+- Swagger: http://localhost:8000/docs
+- Health: http://localhost:8000/health
+
+Se o Service estiver publicado como NodePort, use `http://<IP-do-node>:30000/docs`; se estiver atrás de LoadBalancer/Ingress, use o hostname fornecido pelo ambiente.
+
+## CI/CD e configuração
+
+Secrets esperados: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_REGION`. Valores sensíveis permanecem fora do Git e devem ser fornecidos por variáveis protegidas.
+
+## Observabilidade
+
+O cluster deve coletar CPU, memória, latência, probes, reinícios, logs JSON e falhas de processamento. O Datadog Agent deve ser instalado no namespace de monitoramento com `DATADOG_API_KEY` e `DATADOG_APP_KEY` protegidos.
 
 ## Estrutura do repositório
 
 ```text
-repo-k8s-infra/
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml
-├── README.md
-├── cluster.tf
-├── outputs.tf
-├── providers.tf
-├── terraform.tfvars.example
-├── variables.tf
-└── .gitignore
+cluster.tf             Cluster e recursos base
+providers.tf           Providers Terraform
+variables.tf           Variáveis de ambiente
+outputs.tf             Endpoints e saídas
+.github/workflows/     Pipeline de validação e deploy
 ```
 
-## Fluxo recomendado
+## Segurança e governança
 
-```text
-feature/* -> PR -> homologacao -> deploy automático
-feature/* -> PR -> main -> deploy automático em produção
-```
-
-## Branches
-
-- `homologacao`
-- `main`
-
-## CI/CD
-
-O workflow deste repositório executa:
-
-1. `terraform fmt`
-2. `terraform validate`
-3. `terraform plan` em pull request
-4. `terraform apply` em homologação e produção
-
-## Secrets obrigatórios
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION`
-
-## Como usar
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
-# ajustar valores sensíveis
-terraform init
-terraform plan
-terraform apply
-```
-
-## Observações
-
-- os arquivos de variável sensível devem permanecer fora do Git
-- o deploy em produção exige aprovação e checks obrigatórios
-- o cluster e recurso base devem existir antes do rollout da aplicação principal
-
-## Regras de proteção
-
-- commits diretos bloqueados
-- merge somente via Pull Request
-- status checks obrigatórios
-- revisão mínima exigida
-- bloqueio de force push
-- bloqueio de exclusão da branch
+- kubeconfig e credenciais fora do Git;
+- produção sujeita a aprovação e checks;
+- namespace e permissões devem seguir menor privilégio;
+- merge somente via Pull Request em branch protegida.
