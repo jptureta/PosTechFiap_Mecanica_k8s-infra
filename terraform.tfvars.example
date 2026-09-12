@@ -1,6 +1,9 @@
 # Copie este arquivo para terraform.tfvars e preencha os valores.
 # O terraform.tfvars real NÃO deve ser commitado (está no .gitignore).
 
+# ARN da LabRole do AWS Academy (IAM → Roles → LabRole → copiar ARN)
+lab_role_arn        = "arn:aws:iam::970075114213:role/LabRole"
+
 aws_region          = "us-east-1"
 cluster_name        = "oficina-mecanica-eks"
 cluster_version     = "1.30"

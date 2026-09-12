@@ -1,3 +1,8 @@
+variable "lab_role_arn" {
+  description = "ARN da IAM Role pré-existente do AWS Academy (LabRole). Encontrada em IAM → Roles → LabRole."
+  type        = string
+}
+
 variable "aws_region" {
   description = "Região da AWS para criação do cluster EKS e VPC"
   type        = string
