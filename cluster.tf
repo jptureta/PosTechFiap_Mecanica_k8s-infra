@@ -32,6 +32,7 @@ resource "aws_eks_node_group" "nodes" {
   subnet_ids      = [aws_subnet.public_1.id, aws_subnet.public_2.id]
 
   instance_types = var.node_instance_types
+  ami_type       = "AL2023_x86_64_STANDARD"
   capacity_type  = "ON_DEMAND"
 
   # Configuração de Escalabilidade (Cluster Auto Scaling)
