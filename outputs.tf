@@ -27,3 +27,23 @@ output "kubeconfig_command" {
   description = "Comando AWS CLI para gerar/atualizar o kubeconfig local"
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.eks.name}"
 }
+
+# ─────────────────────────────────────────────────────────────
+# Saidas do NLB / VPC Link — o SAM (repo lambda) le tudo do
+# SSM Parameter Store, estes outputs sao para diagnostico.
+# ─────────────────────────────────────────────────────────────
+
+output "nlb_dns_name" {
+  description = "DNS interno do NLB que expoe a API do cluster"
+  value       = aws_lb.api.dns_name
+}
+
+output "nlb_listener_arn" {
+  description = "ARN do listener HTTP do NLB — alvo do API Gateway"
+  value       = aws_lb_listener.api.arn
+}
+
+output "vpc_link_security_group_id" {
+  description = "SG usado pelas ENIs do VPC Link do API Gateway"
+  value       = aws_security_group.nlb.id
+}
